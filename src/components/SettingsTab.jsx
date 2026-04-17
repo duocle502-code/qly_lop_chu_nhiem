@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Trash2, Edit3, RotateCcw, CheckSquare, X, Check } from 'lucide-react';
 import { COLORS, DEFAULT_STUDENTS, DEFAULT_BEHAVIORS, DEFAULT_REWARDS, DEFAULT_LEVELS, DEFAULT_TIERS } from '../constants.js';
 import ClassManagement from './ClassManagement.jsx';
@@ -120,64 +120,108 @@ function StudentSection({ students, setStudents, setStarData }) {
 }
 
 // ═══ BEHAVIOR MANAGEMENT ═══
+
+// BehaviorFormFields phải định nghĩa NGOÀI BehaviorSection
+// để tránh bị re-define mỗi khi BehaviorSection re-render → gây mất focus sau 1 ký tự
+function BehaviorFormFields({ initial, onSave, onCancel }) {
+    const rCode    = useRef(null);
+    const rName    = useRef(null);
+    const rStars   = useRef(null);
+    const rUnit    = useRef(null);
+    const rDef     = useRef(null);
+    const rExample = useRef(null);
+
+    const collect = () => ({
+        code:    rCode.current?.value.trim()    || "",
+        name:    rName.current?.value.trim()    || "",
+        stars:   Number(rStars.current?.value)  || 1,
+        unit:    rUnit.current?.value.trim()    || "lần",
+        def:     rDef.current?.value.trim()     || "",
+        example: rExample.current?.value.trim() || "",
+    });
+
+    const handleSave = () => {
+        const d = collect();
+        if (!d.name) { rName.current?.focus(); return; }
+        onSave(d);
+    };
+
+    const onKey = (e) => {
+        if (e.key === "Enter")  handleSave();
+        if (e.key === "Escape") onCancel();
+    };
+
+    return (
+        <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}` }}>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 60px 70px", gap: 8, marginBottom: 8 }}>
+                <input ref={rCode}  defaultValue={initial.code}    placeholder="Mã"           style={inputStyle} onKeyDown={onKey} />
+                <input ref={rName}  defaultValue={initial.name}    placeholder="Tên hành vi *" style={inputStyle} onKeyDown={onKey} autoFocus />
+                <input ref={rStars} defaultValue={initial.stars}   placeholder="⭐" type="number" min="1" max="10" style={inputStyle} onKeyDown={onKey} />
+                <input ref={rUnit}  defaultValue={initial.unit}    placeholder="Đơn vị"       style={inputStyle} onKeyDown={onKey} />
+            </div>
+            <input ref={rDef}     defaultValue={initial.def}     placeholder="Mô tả"           style={{ ...inputStyle, marginBottom: 8 }} onKeyDown={onKey} />
+            <input ref={rExample} defaultValue={initial.example} placeholder="Ví dụ quan sát" style={{ ...inputStyle, marginBottom: 8 }} onKeyDown={onKey} />
+            <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={handleSave} style={btnSuccess}><Check size={13} /> Lưu</button>
+                <button onClick={onCancel}   style={btnGhost}  ><X     size={13} /> Hủy</button>
+            </div>
+        </div>
+    );
+}
+
+const BEHAVIOR_INIT = { code: "", name: "", def: "", example: "", stars: 1, unit: "lần" };
+
 function BehaviorSection({ behaviors, setBehaviors }) {
     const [showAdd, setShowAdd] = useState(false);
     const [editIdx, setEditIdx] = useState(-1);
-    const [form, setForm] = useState({ code: "", name: "", def: "", example: "", stars: 1, unit: "lần" });
+    const [editInit, setEditInit] = useState(BEHAVIOR_INIT);
 
-    const resetForm = () => setForm({ code: "", name: "", def: "", example: "", stars: 1, unit: "lần" });
-
-    const addBehavior = () => {
-        if (!form.name.trim()) return;
-        const code = form.code || `HV${String(behaviors.length + 1).padStart(2, "0")}`;
-        setBehaviors(prev => [...prev, { ...form, code, stars: Number(form.stars) || 1 }]);
-        resetForm(); setShowAdd(false);
+    const handleAdd = (data) => {
+        const code = data.code || `HV${String(behaviors.length + 1).padStart(2, "0")}`;
+        setBehaviors(prev => [...prev, { ...data, code }]);
+        setShowAdd(false);
     };
 
-    const saveEdit = () => {
-        if (!form.name.trim()) return;
-        setBehaviors(prev => prev.map((b, i) => i === editIdx ? { ...form, stars: Number(form.stars) || 1 } : b));
-        resetForm(); setEditIdx(-1);
+    const handleSaveEdit = (data) => {
+        setBehaviors(prev => prev.map((b, i) => i === editIdx ? { ...b, ...data } : b));
+        setEditIdx(-1);
     };
 
     const deleteBehavior = (idx) => setBehaviors(prev => prev.filter((_, i) => i !== idx));
     const resetBehaviors = () => { if (confirm("Reset về 8 hành vi mẫu?")) setBehaviors([...DEFAULT_BEHAVIORS]); };
 
-    const FormFields = ({ onSave, onCancel }) => (
-        <div style={{ background: "#f8fafc", borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 60px 70px", gap: 8, marginBottom: 8 }}>
-                <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="Mã" style={inputStyle} />
-                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Tên hành vi *" style={inputStyle} />
-                <input type="number" min="1" max="10" value={form.stars} onChange={e => setForm(p => ({ ...p, stars: e.target.value }))} placeholder="⭐" style={inputStyle} />
-                <input value={form.unit} onChange={e => setForm(p => ({ ...p, unit: e.target.value }))} placeholder="Đơn vị" style={inputStyle} />
-            </div>
-            <input value={form.def} onChange={e => setForm(p => ({ ...p, def: e.target.value }))} placeholder="Mô tả" style={{ ...inputStyle, marginBottom: 8 }} />
-            <input value={form.example} onChange={e => setForm(p => ({ ...p, example: e.target.value }))} placeholder="Ví dụ quan sát" style={{ ...inputStyle, marginBottom: 8 }} />
-            <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={onSave} style={btnSuccess}><Check size={13} /> Lưu</button>
-                <button onClick={onCancel} style={btnGhost}><X size={13} /> Hủy</button>
-            </div>
-        </div>
-    );
-
     return (
         <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: `1px solid ${COLORS.border}`, marginBottom: 16 }}>
             <SectionHeader title="Quản lý Hành vi" emoji="📋" count={behaviors.length} />
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <button onClick={() => { resetForm(); setShowAdd(true); setEditIdx(-1); }} style={btnPrimary}><Plus size={14} /> Thêm</button>
+                <button onClick={() => { setShowAdd(true); setEditIdx(-1); }} style={btnPrimary}><Plus size={14} /> Thêm</button>
                 <button onClick={resetBehaviors} style={{ ...btnGhost, marginLeft: "auto" }}><RotateCcw size={13} /> Reset mẫu</button>
             </div>
-            {showAdd && <FormFields onSave={addBehavior} onCancel={() => { setShowAdd(false); resetForm(); }} />}
+            {showAdd && (
+                <BehaviorFormFields
+                    key="add"
+                    initial={BEHAVIOR_INIT}
+                    onSave={handleAdd}
+                    onCancel={() => setShowAdd(false)}
+                />
+            )}
             {behaviors.map((b, i) => (
                 <div key={i}>
-                    {editIdx === i ? <FormFields onSave={saveEdit} onCancel={() => { setEditIdx(-1); resetForm(); }} /> : (
+                    {editIdx === i ? (
+                        <BehaviorFormFields
+                            key={`edit-${i}`}
+                            initial={editInit}
+                            onSave={handleSaveEdit}
+                            onCancel={() => setEditIdx(-1)}
+                        />
+                    ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${COLORS.border}` }}>
                             <div style={{ width: 36, height: 36, borderRadius: 8, background: COLORS.accent + "20", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: COLORS.accent, flexShrink: 0 }}>{b.code?.slice(-2) || i + 1}</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 700, fontSize: 13 }}>{b.name} <span style={{ color: COLORS.accent, fontSize: 12 }}>({b.stars}⭐/{b.unit})</span></div>
                                 <div style={{ fontSize: 11, color: COLORS.textMuted }}>{b.def}</div>
                             </div>
-                            <button onClick={() => { setEditIdx(i); setForm({ ...b }); setShowAdd(false); }} style={{ ...btnGhost, padding: "4px 8px" }}><Edit3 size={13} /></button>
+                            <button onClick={() => { setEditIdx(i); setEditInit({ ...b }); setShowAdd(false); }} style={{ ...btnGhost, padding: "4px 8px" }}><Edit3 size={13} /></button>
                             <button onClick={() => deleteBehavior(i)} style={{ ...btnDanger, padding: "4px 8px" }}><Trash2 size={13} /></button>
                         </div>
                     )}
