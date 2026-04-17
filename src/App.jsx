@@ -214,7 +214,7 @@ export default function PBISApp() {
                 {tab === 0 && <DashboardTab summaryData={summaryData} tierCounts={tierCounts} starData={starData} students={students} />}
                 {tab === 1 && <DailyTab students={students} starData={starData} updateStar={updateStar} selectedDay={selectedDay} setSelectedDay={setSelectedDay} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} selectedYear={selectedYear} setSelectedYear={setSelectedYear} searchTerm={searchTerm} setSearchTerm={setSearchTerm} />}
                 {tab === 2 && <RankingTab summaryData={summaryData} />}
-                {tab === 3 && <BehaviorTab behaviors={behaviors} />}
+                {tab === 3 && <BehaviorTab behaviors={behaviors} setBehaviors={setBehaviors} />}
                 {tab === 4 && <InterventionTab summaryData={summaryData} interventions={interventions} setInterventions={setInterventions} tiers={tiers} />}
                 {tab === 5 && <RewardTab summaryData={summaryData} exchanges={exchanges} setExchanges={setExchanges} rewards={rewards} />}
                 {tab === 6 && <SettingsTab students={students} setStudents={setStudents} setStarData={setStarData} behaviors={behaviors} setBehaviors={setBehaviors} rewards={rewards} setRewards={setRewards} levels={levels} setLevels={setLevels} tiers={tiers} setTiers={setTiers} classes={classes} setClasses={setClasses} studentMeta={studentMeta} setStudentMeta={setStudentMeta} activeClass={activeClass} setActiveClass={setActiveClass} />}
