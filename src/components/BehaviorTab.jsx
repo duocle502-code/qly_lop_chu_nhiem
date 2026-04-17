@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Plus, Trash2, Edit3, X, Check, RotateCcw } from 'lucide-react';
 import { COLORS, DEFAULT_BEHAVIORS } from '../constants.js';
 
@@ -7,25 +7,53 @@ const inputStyle = {
     border: `1px solid ${COLORS.border}`, fontSize: 13,
     fontFamily: "inherit", boxSizing: "border-box",
 };
-const btnBase  = { display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };
+const btnBase    = { display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };
 const btnSuccess = { ...btnBase, background: COLORS.green, color: "#fff" };
 const btnDanger  = { ...btnBase, background: COLORS.red,   color: "#fff" };
 const btnGhost   = { ...btnBase, background: "#f1f5f9",    color: COLORS.textMuted };
 
-const EMPTY_FORM = { code: "", name: "", def: "", example: "", stars: 1, unit: "lần" };
+const EMPTY = { code: "", name: "", def: "", example: "", stars: 1, unit: "lần" };
 
-// ─── BehaviorForm phải định nghĩa NGOÀI component chính ───
-function BehaviorForm({ initial, title, accentColor, accentBorder, onSave, onCancel }) {
-    const [code,    setCode]    = useState(initial.code);
-    const [name,    setName]    = useState(initial.name);
-    const [def,     setDef]     = useState(initial.def);
-    const [example, setExample] = useState(initial.example);
-    const [stars,   setStars]   = useState(initial.stars);
-    const [unit,    setUnit]    = useState(initial.unit);
+/* ───────────────────────────────────────────────
+   BehaviorForm – dùng UNCONTROLLED inputs + ref
+   Không phụ thuộc React state khi gõ → không bị mất con trỏ
+─────────────────────────────────────────────── */
+function BehaviorForm({ initial = EMPTY, title, accentColor, accentBorder, onSave, onCancel }) {
+    const codeRef    = useRef(null);
+    const nameRef    = useRef(null);
+    const starsRef   = useRef(null);
+    const unitRef    = useRef(null);
+    const defRef     = useRef(null);
+    const exampleRef = useRef(null);
+
+    // Đồng bộ giá trị initial vào DOM khi mount
+    useEffect(() => {
+        if (codeRef.current)    codeRef.current.value    = initial.code    ?? "";
+        if (nameRef.current)    nameRef.current.value    = initial.name    ?? "";
+        if (starsRef.current)   starsRef.current.value   = initial.stars   ?? 1;
+        if (unitRef.current)    unitRef.current.value    = initial.unit    ?? "lần";
+        if (defRef.current)     defRef.current.value     = initial.def     ?? "";
+        if (exampleRef.current) exampleRef.current.value = initial.example ?? "";
+        nameRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleSave = () => {
-        if (!name.trim()) return;
-        onSave({ code, name, def, example, stars: Number(stars) || 1, unit });
+        const name = nameRef.current?.value?.trim() ?? "";
+        if (!name) { nameRef.current?.focus(); return; }
+        onSave({
+            code:    codeRef.current?.value?.trim()    ?? "",
+            name,
+            stars:   Number(starsRef.current?.value)   || 1,
+            unit:    unitRef.current?.value?.trim()    || "lần",
+            def:     defRef.current?.value?.trim()     ?? "",
+            example: exampleRef.current?.value?.trim() ?? "",
+        });
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") handleSave();
+        if (e.key === "Escape") onCancel();
     };
 
     return (
@@ -37,46 +65,16 @@ function BehaviorForm({ initial, title, accentColor, accentBorder, onSave, onCan
             <div style={{ fontWeight: 700, fontSize: 14, color: accentColor || COLORS.primary, marginBottom: 12 }}>
                 {title}
             </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 60px 80px", gap: 8, marginBottom: 8 }}>
-                <input
-                    style={inputStyle}
-                    placeholder="Mã (tự động)"
-                    value={code}
-                    onChange={e => setCode(e.target.value)}
-                />
-                <input
-                    style={inputStyle}
-                    placeholder="Tên hành vi *"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    autoFocus
-                />
-                <input
-                    style={inputStyle}
-                    type="number" min="1" max="10"
-                    placeholder="⭐"
-                    value={stars}
-                    onChange={e => setStars(e.target.value)}
-                />
-                <input
-                    style={inputStyle}
-                    placeholder="Đơn vị"
-                    value={unit}
-                    onChange={e => setUnit(e.target.value)}
-                />
+                <input ref={codeRef}  style={inputStyle} placeholder="Mã (tự động)" onKeyDown={handleKeyDown} />
+                <input ref={nameRef}  style={inputStyle} placeholder="Tên hành vi *" onKeyDown={handleKeyDown} />
+                <input ref={starsRef} style={inputStyle} type="number" min="1" max="10" placeholder="⭐" onKeyDown={handleKeyDown} />
+                <input ref={unitRef}  style={inputStyle} placeholder="Đơn vị" onKeyDown={handleKeyDown} />
             </div>
-            <input
-                style={{ ...inputStyle, marginBottom: 8 }}
-                placeholder="Mô tả định nghĩa hành vi"
-                value={def}
-                onChange={e => setDef(e.target.value)}
-            />
-            <input
-                style={{ ...inputStyle, marginBottom: 12 }}
-                placeholder="Ví dụ quan sát được"
-                value={example}
-                onChange={e => setExample(e.target.value)}
-            />
+            <input ref={defRef}     style={{ ...inputStyle, marginBottom: 8 }}  placeholder="Mô tả định nghĩa hành vi" onKeyDown={handleKeyDown} />
+            <input ref={exampleRef} style={{ ...inputStyle, marginBottom: 12 }} placeholder="Ví dụ quan sát được"      onKeyDown={handleKeyDown} />
+
             <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={handleSave} style={btnSuccess}><Check size={14} /> Lưu hành vi</button>
                 <button onClick={onCancel}   style={btnGhost}  ><X     size={14} /> Hủy</button>
@@ -85,20 +83,22 @@ function BehaviorForm({ initial, title, accentColor, accentBorder, onSave, onCan
     );
 }
 
-// ─── Component chính ───
+/* ───────────────────────────────────────────────
+   BehaviorTab – component chính
+─────────────────────────────────────────────── */
 export default function BehaviorTab({ behaviors, setBehaviors }) {
     const [expanded, setExpanded] = useState(null);
     const [showAdd,  setShowAdd]  = useState(false);
     const [editIdx,  setEditIdx]  = useState(-1);
 
     const handleAdd = (data) => {
-        const code = data.code.trim() || `HV${String(behaviors.length + 1).padStart(2, "0")}`;
+        const code = data.code || `HV${String(behaviors.length + 1).padStart(2, "0")}`;
         setBehaviors(prev => [...prev, { ...data, code }]);
         setShowAdd(false);
     };
 
     const handleSaveEdit = (data) => {
-        setBehaviors(prev => prev.map((b, i) => i === editIdx ? { ...data } : b));
+        setBehaviors(prev => prev.map((b, i) => i === editIdx ? { ...b, ...data } : b));
         setEditIdx(-1);
         setExpanded(null);
     };
@@ -149,7 +149,7 @@ export default function BehaviorTab({ behaviors, setBehaviors }) {
             {showAdd && (
                 <BehaviorForm
                     key="add-form"
-                    initial={EMPTY_FORM}
+                    initial={EMPTY}
                     title="➕ Thêm hành vi mới"
                     accentBorder={COLORS.primary}
                     accentColor={COLORS.primary}
@@ -167,9 +167,9 @@ export default function BehaviorTab({ behaviors, setBehaviors }) {
                         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                     }}>
                         {editIdx === i ? (
-                            <div style={{ padding: 16 }}>
+                            <div style={{ padding: "12px 16px" }}>
                                 <BehaviorForm
-                                    key={`edit-${i}`}
+                                    key={`edit-${b.code || i}`}
                                     initial={{ ...b }}
                                     title={`✏️ Chỉnh sửa: ${b.name}`}
                                     accentBorder={COLORS.green}
@@ -198,16 +198,27 @@ export default function BehaviorTab({ behaviors, setBehaviors }) {
                                         <span style={{ fontSize: 11, color: COLORS.textMuted }}>⭐/{b.unit}</span>
                                     </div>
                                     <div style={{ display: "flex", gap: 4 }}>
-                                        <button onClick={() => { setEditIdx(i); setShowAdd(false); setExpanded(null); }} style={{ ...btnGhost, padding: "5px 9px" }} title="Chỉnh sửa">
+                                        <button
+                                            onClick={() => { setEditIdx(i); setShowAdd(false); setExpanded(null); }}
+                                            style={{ ...btnGhost, padding: "5px 9px" }} title="Chỉnh sửa"
+                                        >
                                             <Edit3 size={13} />
                                         </button>
-                                        <button onClick={() => handleDelete(i)} style={{ ...btnDanger, padding: "5px 9px" }} title="Xóa">
+                                        <button
+                                            onClick={() => handleDelete(i)}
+                                            style={{ ...btnDanger, padding: "5px 9px" }} title="Xóa"
+                                        >
                                             <Trash2 size={13} />
                                         </button>
                                     </div>
                                     {b.example && (
-                                        <button onClick={() => setExpanded(expanded === i ? null : i)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4 }}>
-                                            {expanded === i ? <ChevronUp size={16} color={COLORS.textMuted} /> : <ChevronDown size={16} color={COLORS.textMuted} />}
+                                        <button
+                                            onClick={() => setExpanded(expanded === i ? null : i)}
+                                            style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4 }}
+                                        >
+                                            {expanded === i
+                                                ? <ChevronUp   size={16} color={COLORS.textMuted} />
+                                                : <ChevronDown size={16} color={COLORS.textMuted} />}
                                         </button>
                                     )}
                                 </div>
