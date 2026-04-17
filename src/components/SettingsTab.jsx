@@ -232,66 +232,110 @@ function BehaviorSection({ behaviors, setBehaviors }) {
 }
 
 // ═══ REWARD MANAGEMENT ═══
-function RewardSection({ rewards, setRewards }) {
-    const [showAdd, setShowAdd] = useState(false);
-    const [editIdx, setEditIdx] = useState(-1);
-    const [form, setForm] = useState({ code: "", name: "", cost: 10, desc: "", quota: "", deadline: "" });
 
-    const resetForm = () => setForm({ code: "", name: "", cost: 10, desc: "", quota: "", deadline: "" });
+// RewardFormFields phải định nghĩa NGOÀI RewardSection
+// để tránh bị re-define mỗi khi RewardSection re-render → gây mất focus sau 1 ký tự
+function RewardFormFields({ initial, onSave, onCancel }) {
+    const rCode     = useRef(null);
+    const rName     = useRef(null);
+    const rCost     = useRef(null);
+    const rDesc     = useRef(null);
+    const rQuota    = useRef(null);
+    const rDeadline = useRef(null);
 
-    const addReward = () => {
-        if (!form.name.trim()) return;
-        const code = form.code || `PT${String(rewards.length + 1).padStart(2, "0")}`;
-        setRewards(prev => [...prev, { ...form, code, cost: Number(form.cost) || 10 }]);
-        resetForm(); setShowAdd(false);
+    const collect = () => ({
+        code:     rCode.current?.value.trim()     || "",
+        name:     rName.current?.value.trim()     || "",
+        cost:     Number(rCost.current?.value)    || 10,
+        desc:     rDesc.current?.value.trim()     || "",
+        quota:    rQuota.current?.value.trim()    || "",
+        deadline: rDeadline.current?.value.trim() || "",
+    });
+
+    const handleSave = () => {
+        const d = collect();
+        if (!d.name) { rName.current?.focus(); return; }
+        onSave(d);
     };
 
-    const saveEdit = () => {
-        if (!form.name.trim()) return;
-        setRewards(prev => prev.map((r, i) => i === editIdx ? { ...form, cost: Number(form.cost) || 10 } : r));
-        resetForm(); setEditIdx(-1);
+    const onKey = (e) => {
+        if (e.key === "Enter")  handleSave();
+        if (e.key === "Escape") onCancel();
+    };
+
+    return (
+        <div style={{ background: "#fffbeb", borderRadius: 10, padding: 14, marginBottom: 10, border: "1px solid #fde68a" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", gap: 8, marginBottom: 8 }}>
+                <input ref={rCode} defaultValue={initial.code}  placeholder="Mã"               style={inputStyle} onKeyDown={onKey} />
+                <input ref={rName} defaultValue={initial.name}  placeholder="Tên phần thưởng *" style={inputStyle} onKeyDown={onKey} autoFocus />
+                <input ref={rCost} defaultValue={initial.cost}  placeholder="Sao ⭐" type="number" min="1" style={inputStyle} onKeyDown={onKey} />
+            </div>
+            <input ref={rDesc}     defaultValue={initial.desc}     placeholder="Mô tả"                      style={{ ...inputStyle, marginBottom: 8 }} onKeyDown={onKey} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                <input ref={rQuota}    defaultValue={initial.quota}    placeholder="Số lượng (VD: 5 suất/tháng)" style={inputStyle} onKeyDown={onKey} />
+                <input ref={rDeadline} defaultValue={initial.deadline} placeholder="Thời hạn"                    style={inputStyle} onKeyDown={onKey} />
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={handleSave} style={btnSuccess}><Check size={13} /> Lưu</button>
+                <button onClick={onCancel}   style={btnGhost}  ><X     size={13} /> Hủy</button>
+            </div>
+        </div>
+    );
+}
+
+const REWARD_INIT = { code: "", name: "", cost: 10, desc: "", quota: "", deadline: "" };
+
+function RewardSection({ rewards, setRewards }) {
+    const [showAdd,   setShowAdd]   = useState(false);
+    const [editIdx,   setEditIdx]   = useState(-1);
+    const [editInit,  setEditInit]  = useState(REWARD_INIT);
+
+    const handleAdd = (data) => {
+        const code = data.code || `PT${String(rewards.length + 1).padStart(2, "0")}`;
+        setRewards(prev => [...prev, { ...data, code }]);
+        setShowAdd(false);
+    };
+
+    const handleSaveEdit = (data) => {
+        setRewards(prev => prev.map((r, i) => i === editIdx ? { ...r, ...data } : r));
+        setEditIdx(-1);
     };
 
     const deleteReward = (idx) => setRewards(prev => prev.filter((_, i) => i !== idx));
     const resetRewards = () => { if (confirm("Reset về 6 phần thưởng mẫu?")) setRewards([...DEFAULT_REWARDS]); };
 
-    const FormFields = ({ onSave, onCancel }) => (
-        <div style={{ background: "#fffbeb", borderRadius: 10, padding: 14, marginBottom: 10, border: "1px solid #fde68a" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 80px", gap: 8, marginBottom: 8 }}>
-                <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="Mã" style={inputStyle} />
-                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Tên phần thưởng *" style={inputStyle} />
-                <input type="number" min="1" value={form.cost} onChange={e => setForm(p => ({ ...p, cost: e.target.value }))} placeholder="Sao ⭐" style={inputStyle} />
-            </div>
-            <input value={form.desc} onChange={e => setForm(p => ({ ...p, desc: e.target.value }))} placeholder="Mô tả" style={{ ...inputStyle, marginBottom: 8 }} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                <input value={form.quota} onChange={e => setForm(p => ({ ...p, quota: e.target.value }))} placeholder="Số lượng (VD: 5 suất/tháng)" style={inputStyle} />
-                <input value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} placeholder="Thời hạn" style={inputStyle} />
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={onSave} style={btnSuccess}><Check size={13} /> Lưu</button>
-                <button onClick={onCancel} style={btnGhost}><X size={13} /> Hủy</button>
-            </div>
-        </div>
-    );
-
     return (
         <div style={{ background: "#fff", borderRadius: 14, padding: 20, border: `1px solid ${COLORS.border}`, marginBottom: 16 }}>
             <SectionHeader title="Quản lý Phần thưởng" emoji="🎁" count={rewards.length} />
             <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                <button onClick={() => { resetForm(); setShowAdd(true); setEditIdx(-1); }} style={btnPrimary}><Plus size={14} /> Thêm</button>
+                <button onClick={() => { setShowAdd(true); setEditIdx(-1); }} style={btnPrimary}><Plus size={14} /> Thêm</button>
                 <button onClick={resetRewards} style={{ ...btnGhost, marginLeft: "auto" }}><RotateCcw size={13} /> Reset mẫu</button>
             </div>
-            {showAdd && <FormFields onSave={addReward} onCancel={() => { setShowAdd(false); resetForm(); }} />}
+            {showAdd && (
+                <RewardFormFields
+                    key="add"
+                    initial={REWARD_INIT}
+                    onSave={handleAdd}
+                    onCancel={() => setShowAdd(false)}
+                />
+            )}
             {rewards.map((r, i) => (
                 <div key={i}>
-                    {editIdx === i ? <FormFields onSave={saveEdit} onCancel={() => { setEditIdx(-1); resetForm(); }} /> : (
+                    {editIdx === i ? (
+                        <RewardFormFields
+                            key={`edit-${i}`}
+                            initial={editInit}
+                            onSave={handleSaveEdit}
+                            onCancel={() => setEditIdx(-1)}
+                        />
+                    ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: `1px solid ${COLORS.border}` }}>
                             <div style={{ background: COLORS.accent + "20", padding: "4px 10px", borderRadius: 99, fontWeight: 800, fontSize: 13, color: COLORS.accent, flexShrink: 0 }}>{r.cost}⭐</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 700, fontSize: 13 }}>{r.name}</div>
                                 <div style={{ fontSize: 11, color: COLORS.textMuted }}>{r.desc}</div>
                             </div>
-                            <button onClick={() => { setEditIdx(i); setForm({ ...r }); setShowAdd(false); }} style={{ ...btnGhost, padding: "4px 8px" }}><Edit3 size={13} /></button>
+                            <button onClick={() => { setEditIdx(i); setEditInit({ ...r }); setShowAdd(false); }} style={{ ...btnGhost, padding: "4px 8px" }}><Edit3 size={13} /></button>
                             <button onClick={() => deleteReward(i)} style={{ ...btnDanger, padding: "4px 8px" }}><Trash2 size={13} /></button>
                         </div>
                     )}
